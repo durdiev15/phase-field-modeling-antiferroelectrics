@@ -1,9 +1,11 @@
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/YOUR_USERNAME/YOUR_REPONAME)](https://github.com/YOUR_USERNAME/YOUR_REPONAME/releases)
+
 # Phase-Field Simulation of Antiferroelectric Materials
 
 This repository contains a Python-based implementation of a phase-field model for simulating domain evolution in antiferroelectric (AFE) materials. The code is built using PyTorch to leverage GPU acceleration and is designed for studying the complex electromechanical behavior of AFE single crystals.
 
 The theoretical framework for this model is detailed in the following publication:
-* **Liu & Xu (2020). Insight into perovskite antiferroelectric phases: Landau theory and phase field study. *Scripta Materialia, 186*, 136–141.** [https://doi.org/10.1016/j.scriptamat.2020.04.040](https://doi.org/10.1016/j.scriptamat.2020.04.040)
+* **Liu, Y., & Xu, B. X. (2020). Insight into perovskite antiferroelectric phases: A Landau theory and phase-field study. *Acta Materialia, 196*, 435-446.** [https://doi.org/10.1016/j.actamat.2020.07.016](https://doi.org/10.1016/j.actamat.2020.07.016)
 
 ## Features
 
@@ -35,7 +37,7 @@ The repository is organized as follows:
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/durdiev15/phase-field-modeling-antiferroelectrics.git
+    git clone [https://github.com/durdiev15/phase-field-modeling-antiferroelectrics.git](https://github.com/durdiev15/phase-field-modeling-antiferroelectrics.git)
     cd phase-field-modeling-antiferroelectrics
     ```
 
@@ -97,7 +99,7 @@ The `SingleCrystalDomainEvolution` class orchestrates the entire simulation.
     4.  Updating the polarization field by solving the TDGL equation.
 
 ### `solvers/solver.py`
-The `FourierSolver` class implements the spectral methods for solving the governing PDEs.
+The `FourierSolver` class implements the spectral methods for a 2D system.
 * `solve_mechanics`: Solves the mechanical equilibrium equation `div(σ) = 0` by transforming the problem to Fourier space, where the solution becomes an algebraic operation involving the Green's operator.
 * `solve_electrostatics`: Solves the electrostatic equilibrium equation `div(D) = 0` in Fourier space.
 
@@ -113,6 +115,17 @@ This module contains various helper functions, including:
 * `triangular_field_vectorized`: To generate the waveform for the applied electric field during hysteresis simulations.
 * `spon_strain_derivative`: To compute the spontaneous strain from the polarization field via electrostriction.
 * Functions for converting between Voigt and full tensor notations.
+
+## Releases and Versioning
+
+This project uses semantic versioning (e.g., `v1.0.0`). Stable versions are tagged and can be found on the [Releases page](https://github.com/YOUR_USERNAME/YOUR_REPONAME/releases) of the GitHub repository. The `main` branch reflects the latest stable release.
+
+### Changelog
+
+* **v1.0.0** (2025-07-26)
+    * Initial release of the single-crystal AFE phase-field simulation code.
+    * Includes solvers for electromechanical coupling and TDGL evolution.
+    * Added data saving to HDF5 and plotting capabilities.
 
 ## License
 
