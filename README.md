@@ -1,4 +1,5 @@
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/YOUR_USERNAME/YOUR_REPONAME)](https://github.com/YOUR_USERNAME/YOUR_REPONAME/releases)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/durdiev15/phase-field-modeling-antiferroelectrics)](https://github.com/durdiev15/phase-field-modeling-antiferroelectrics/releases)
+
 
 # Phase-Field Simulation of Antiferroelectric Materials
 
