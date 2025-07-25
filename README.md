@@ -35,16 +35,15 @@ The repository is organized as follows:
 
 1.  **Clone the repository:**
     ```bash
-    git clone <your-repository-url>
-    cd <your-repository-name>
+    git clone https://github.com/durdiev15/phase-field-modeling-antiferroelectrics.git
+    cd phase-field-modeling-antiferroelectrics
     ```
 
 2.  **Install dependencies:**
     The code relies on several scientific computing libraries. You can install them using pip. A GPU with CUDA is highly recommended for performance.
 
     ```bash
-    pip install torch torchvision torchaudio
-    pip install numpy matplotlib h5py tqdm scipy
+    pip install torch numpy matplotlib h5py tqdm scipy
     ```
 
 ## How to Run a Simulation
