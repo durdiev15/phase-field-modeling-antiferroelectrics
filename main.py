@@ -1,12 +1,15 @@
 import torch
+import timeit
+import sys
 import os
 
-from domain_evolution import SingleCrystalDomainEvolution
+# from domain_evolution import (SingleCrystalDomainEvolution, PolyCrystalDomainEvolution)
+from archive.domain_evolution import (SingleCrystalDomainEvolution, PolyCrystalDomainEvolution)
 from solvers.utils import initial_polarization
 
 from math import pi, sqrt
 
-def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False):
+def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False, polycrystal=False):
     # Materials and simulation parameters
     P_scale = 0.2  # C/m^2
     l_scale = 1E-9  # m
@@ -46,7 +49,7 @@ def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False):
         'mob': 300,
         't_scale': P_scale**2 / (H_scale * 30),
 
-        'Nx': 128, 'Ny': 128,
+        'Nx': 512, 'Ny': 256,
         'dx': 0.2, 'dy': 0.2,
 
         'nsteps': 10000 if hysteresis else 5000,
@@ -55,8 +58,11 @@ def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False):
 
         'hysteresis': hysteresis,
         'E_max': 60e6 if hysteresis else 0,  # must be in V/m
-        'E_max_idx': 1  # must be int x=0, y=1
+        'E_max_idx': 1,  # must be int x=0, y=1
 
+        'polycrystal': polycrystal,
+        'grain_numbers': 4,
+        'grain_seed': 0
     }
 
     # Determine file names based on simulation phase
@@ -70,31 +76,53 @@ def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False):
     n = 2 * pi / (sqrt(1) * sim_params['ac']) * sqrt(2 * sim_params['g']/sim_params['sigma_theta2'])
     print(f"Number of periodicity: {n:.2f}")
 
-    results_dir_name = f"results_single_{sim_params['Nx']}x{sim_params['dx']}"
-    simulation = SingleCrystalDomainEvolution(
-        P=P,
-        sim_params=sim_params,
-        results_dir_name=results_dir_name,
-        file_name_h5=file_name_h5,
-        max_iter=1,
-        rtol=1e-4,
-        dtype=torch.float64
-    )
+    # Run simulation
+    if polycrystal:
+        results_dir_name = f"results_grain_{sim_params['grain_numbers']}_{sim_params['Nx']}x{sim_params['dx']}_0to180"
+        simulation = PolyCrystalDomainEvolution(
+            P=P,
+            sim_params=sim_params,
+            results_dir_name=results_dir_name,
+            file_name_h5=file_name_h5,
+            max_iter=1,
+            rtol=1e-4,
+            dtype=torch.float32
+        )
+    else:
+        results_dir_name = f"results_single_{sim_params['Nx']}x{sim_params['dx']}"
+        simulation = SingleCrystalDomainEvolution(
+            P=P,
+            sim_params=sim_params,
+            results_dir_name=results_dir_name,
+            file_name_h5=file_name_h5,
+            max_iter=1,
+            rtol=1e-4,
+            dtype=torch.float64
+        )
     
     simulation.run()
 
     return os.path.join(os.getcwd(), results_dir_name, file_name_h5)
 
 def main():
-    a_afe_scales = [2.2]#, 1.5, 2.2, 3.0]
+    a_afe_scales = [1.0, 1.5, 2.2, 3.0]
     initial_files = {}
 
     # First phase: run without electric field
     print("Running initial simulations without electric field...")
     for scale in (a_afe_scales):
-        result_file = run_simulation(scale, hysteresis=False)
+        result_file = run_simulation(scale, hysteresis=False, polycrystal=True)
         initial_files[scale] = result_file
+
+    # Second phase: run with hysteresis
+    print("\nRunning hysteresis simulations...")
+    for scale in (a_afe_scales):
+        run_simulation(scale, initial_results_path=initial_files[scale], hysteresis=True, polycrystal=True)
 
 
 if __name__ == "__main__":
+    start_tm = timeit.default_timer()
     main()
+    stop_tm = timeit.default_timer()
+
+    print(f"\nExecution time: {(stop_tm - start_tm)/60:.5f} min\n")

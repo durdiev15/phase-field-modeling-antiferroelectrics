@@ -105,7 +105,10 @@ class SingleCrystalDomainEvolution:
         """Execute the complete simulation with optional features."""
         self._save_initial_state()
         
-        progress_desc = "Simulation Progress"
+        if self.sim_params['polycrystal'] is True:
+            progress_desc = "Polycrystalline Simulation Progress"
+        else:
+            progress_desc = "Single Crystal Simulation Progress"
 
         progress_bar = tqdm(range(self.sim_params['nsteps']), desc=progress_desc, dynamic_ncols=True)
         for step in progress_bar:
@@ -233,3 +236,142 @@ class SingleCrystalDomainEvolution:
         self.output.save(step, P_cpu)
         self.output.plot(step, P_cpu)
         del P_cpu
+
+# ============================= Polycrystalline Simulations ====================================
+class PolyCrystalDomainEvolution(SingleCrystalDomainEvolution):
+    """Extends SingleCrystalDomainEvolution to handle polycrystalline simulations with grain structure."""
+    def __init__(self,
+                 P: torch.Tensor,
+                 sim_params: Dict,
+                 results_dir_name: str,
+                 file_name_h5: str,
+                 max_iter: int,
+                 rtol: float,
+                 dtype=torch.float32):
+        
+        # Initialize parent class
+        super().__init__(P, sim_params, results_dir_name, file_name_h5, max_iter, rtol, dtype)
+        
+        # Polycrystal-specific initialization
+        self._validate_polycrystal_params()
+        self._initialize_grains()
+
+    def _validate_polycrystal_params(self):
+        """Validate polycrystal-specific parameters."""
+        if not self.sim_params.get('polycrystal', False):
+            raise ValueError("This class is for polycrystalline simulations only!")
+            
+        required_params = ['grain_numbers', 'grain_seed']
+        for param in required_params:
+            if param not in self.sim_params:
+                raise ValueError(f"Polycrystal simulation requires '{param}' parameter")
+            
+    def _initialize_grains(self):
+        """Initialize grain structure and rotation matrices."""
+        self.grain_structure = generate_periodic_voronoi_grains(
+            self.sim_params['Nx'], 
+            self.sim_params['Ny'], 
+            num_grains=self.sim_params['grain_numbers'],
+            device=self.device
+        )
+        self.grain_ids = torch.unique(self.grain_structure)
+        
+        torch.manual_seed(self.sim_params['grain_seed'])
+        grain_orientations = torch.rand(len(self.grain_ids), device=self.device) * torch.pi
+        
+        self.R_matrices = {
+            gid.item(): torch.tensor([
+                [torch.cos(theta), -torch.sin(theta)],
+                [torch.sin(theta), torch.cos(theta)]
+            ], device=self.device, dtype=self.dtype)
+            for gid, theta in zip(self.grain_ids, grain_orientations)
+        }
+
+    def transform_tensor_field(self, tensor_field: torch.Tensor, transpose: bool = False) -> torch.Tensor:
+        """Transform tensor field between local and global coordinates."""
+        output_field = torch.zeros_like(tensor_field)
+        for gid in self.grain_ids:
+            mask = (self.grain_structure == gid)
+            R = self.R_matrices[gid.item()].T if transpose else self.R_matrices[gid.item()]
+            output_field[:, mask] = torch.einsum('ij,j...->i...', R, tensor_field[:, mask])
+        return output_field
+    
+    def rotate_strain_tensor(self, eps_local: torch.Tensor) -> torch.Tensor:
+        """Rotate strain tensor from local to global coordinates."""
+        eps_global = torch.zeros_like(eps_local)
+        for gid in self.grain_ids:
+            mask = (self.grain_structure == gid)
+            R = self.R_matrices[gid.item()]
+            eps_global[:, :, mask] = torch.einsum('ki,kl...,lj->ij...', R, eps_local[:, :, mask], R)
+        return eps_global
+    
+    def rotate_strain_derivative(self, sigma: torch.Tensor, deps_local: torch.Tensor) -> torch.Tensor:
+        """Rotate strain derivative from local to global coordinates."""
+        dH_elas_global = torch.zeros((2, self.grain_structure.shape[0], self.grain_structure.shape[1]), device=self.device, dtype=self.dtype)
+        for gid in self.grain_ids:
+            mask = (self.grain_structure == gid)
+            R = self.R_matrices[gid.item()]
+            deps_global = torch.einsum('ki,klm...,lj->ijm...', R, deps_local[..., mask], R)
+            dH_elas_global[:, mask] = torch.einsum('ij...,ijm...->m...', sigma[..., mask], -deps_global)
+        return dH_elas_global
+    
+    def calculate_stress_strain(self) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Polycrystal-specific stress/strain calculation."""
+        P_local = self.transform_tensor_field(self.P)
+        eps0_local, deps0_dP_local = spon_strain_derivative(
+            self.sim_params['Q11'], 
+            self.sim_params['Q12'], 
+            self.sim_params['Q44'], 
+            P_local
+        )
+        eps0_global = self.rotate_strain_tensor(eps0_local)
+        
+        sigma, eps_elas, *_ = self.solver.solve_mechanics(
+            C0=self.C, 
+            G=self.Gamma, 
+            eps0=eps0_global,
+            eps_ext=self.eps_ext
+        )
+
+        del eps0_global
+        
+        return sigma, eps_elas, deps0_dP_local
+    
+    def calculate_energies(self, 
+                          sigma: torch.Tensor, 
+                          eps_elas: torch.Tensor,
+                          deps0_dP: torch.Tensor, 
+                          P_fft: torch.Tensor,
+                          E: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+        """Polycrystal-specific energy calculation."""
+        P_local = self.transform_tensor_field(self.P)
+        
+        # Calculate energies in local coordinates
+        H_landau, dH_landau_dP_local = self.energy_calc.landau_energy_and_derivative(P_local)
+        dH_landau_dP = self.transform_tensor_field(dH_landau_dP_local, transpose=True)
+        
+        H_elas = 0.5 * torch.einsum('ij..., ij...', sigma, eps_elas)
+        dH_elas_dP = self.rotate_strain_derivative(sigma, deps0_dP)
+        
+        H_elec, dH_elec_dP = self.energy_calc.electric_energy_and_derivative(E, self.P)
+        
+        H_grad = self.energy_calc.gradient_energy(self.freq, P_fft)
+        
+        return H_elas, H_elec, H_landau, H_grad, dH_elas_dP, dH_elec_dP, dH_landau_dP
+    
+    def _save_initial_state(self):
+        """Save initial state with grain structure."""
+        self.output.save(0, self.P.cpu().numpy(), SimulationParams=self.sim_params, GrainStructure=self.grain_structure.cpu().numpy())
+        self.output.plot(0, self.P.cpu().numpy(), self.grain_structure.cpu().numpy())
+
+    def _save_and_plot(self, step: int):
+        """Handle saving and plotting with grain visualization."""
+        P_cpu = self.P.detach().cpu().numpy()
+        grain_structure_cpu = self.grain_structure.cpu().numpy()
+        
+        self.output.save(step, P_cpu)
+        self.output.plot(step, P_cpu, grain_structure_cpu)
+        
+        del P_cpu, grain_structure_cpu
+
+
