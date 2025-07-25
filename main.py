@@ -4,7 +4,7 @@ import sys
 import os
 
 # from domain_evolution import (SingleCrystalDomainEvolution, PolyCrystalDomainEvolution)
-from archive.domain_evolution import (SingleCrystalDomainEvolution, PolyCrystalDomainEvolution)
+from domain_evolution import (SingleCrystalDomainEvolution, PolyCrystalDomainEvolution)
 from solvers.utils import initial_polarization
 
 from math import pi, sqrt
