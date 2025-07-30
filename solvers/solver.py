@@ -7,8 +7,6 @@ import sys
 
 class FourierSolver:
     def __init__(self, 
-                 max_iter: int,
-                 tol: float,
                  dtype=torch.float32, 
                  device:torch.device=torch.device("cpu")
                  ):
@@ -18,8 +16,6 @@ class FourierSolver:
         Args:
             dtype_fft: Data type to use for FFT operations (default: torch.complex64)
         """
-        self.max_iter = max_iter
-        self.tol = tol
         self.dtype = dtype
         self.device = device
         self.dtype_fft = torch.complex64 if self.dtype == torch.float32 else torch.complex128

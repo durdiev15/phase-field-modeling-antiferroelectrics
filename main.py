@@ -84,8 +84,6 @@ def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False, pol
             sim_params=sim_params,
             results_dir_name=results_dir_name,
             file_name_h5=file_name_h5,
-            max_iter=1,
-            rtol=1e-4,
             dtype=torch.float32
         )
     else:
@@ -95,8 +93,6 @@ def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False, pol
             sim_params=sim_params,
             results_dir_name=results_dir_name,
             file_name_h5=file_name_h5,
-            max_iter=1,
-            rtol=1e-4,
             dtype=torch.float64
         )
     

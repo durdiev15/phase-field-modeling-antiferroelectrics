@@ -16,8 +16,6 @@ class SingleCrystalDomainEvolution:
                  sim_params: Dict,                # simulation metadata
                  results_dir_name: str,  # directory name where we save data
                  file_name_h5: str,   # file name for saving data in .h5
-                 max_iter: int,     # max number of iterations for solvers
-                 rtol: float,       # tolerance for convergence check in solvers
                  dtype = torch.float32 # default is 32 
                  ):
         
@@ -30,14 +28,12 @@ class SingleCrystalDomainEvolution:
         self.sim_params = sim_params
         self.results_dir_name = results_dir_name
         self.file_name_h5 = file_name_h5
-        self.max_iter = max_iter
-        self.rtol = rtol
         self.dtype = dtype
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.P = P.to(self.dtype).to(self.device)
 
         """Initialize solvers, output managers, and energy calculators."""
-        self.solver = FourierSolver(self.max_iter, self.rtol, self.dtype, self.device)
+        self.solver = FourierSolver(self.dtype, self.device)
         self.output = SimulationOutputManager(self.results_dir_name, self.file_name_h5, 
                                             max_value=1.0, n=3,
                                             hysteresis_h5_filename=f"hysteresis_{self.sim_params['a_afe_scale']}.h5")
