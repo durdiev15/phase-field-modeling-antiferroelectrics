@@ -146,3 +146,31 @@ class FourierSolver:
         del freq2, E_fft
 
         return E, ifft(phi_fft).real
+    
+    def stress_divergence(self, sigma, freq):
+        # sigma_ij,j = 1j * freq * sigma_fft must be zero
+        freq = freq.to(dtype=self.dtype_fft)
+        sigma_hat = fft(sigma, dim=(-2, -1))
+        div_sigma_hat = 1j * torch.einsum('ij..., j... -> i...', sigma_hat, freq)
+        div_sigma = ifft(div_sigma_hat, dim=(1, 2)).real
+        max_div_sigma_error = torch.max(torch.abs(div_sigma)).item()
+
+        print(f"Maximum absolute error in div(sigma): {max_div_sigma_error:.2e}")
+        if max_div_sigma_error < 1e-12:
+            print("Verification successful: div(sigma) is numerically zero.")
+        else:
+            print("Verification failed: div(sigma) is not zero.")
+
+    def electric_displacement_divergence(self, k0, E, P, freq):
+        D = k0 * E + P
+        freq = freq.to(dtype=self.dtype_fft)
+        D_hat = fft(D, dim=(-2, -1))
+        div_D_hat = 1j * torch.einsum('ix...,ix...->x...', D_hat, freq.to(torch.complex128))
+        div_D = ifft(div_D_hat).real
+        max_div_D_error = torch.max(torch.abs(div_D)).item()
+
+        print(f"Maximum absolute error in div(D): {max_div_D_error:.2e}")
+        if max_div_D_error < 1e-12:
+            print("Verification successful: div(D) is numerically zero.")
+        else:
+            print("Verification failed: div(D) is not zero.")

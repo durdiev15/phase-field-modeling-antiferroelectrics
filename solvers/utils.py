@@ -4,6 +4,18 @@ import h5py
 import sys
 import os
 
+def random_polarization_field(Nx, Ny, freq2):
+    # Random periodic polarization
+    torch.manual_seed(42)
+    rfft_shape = (2, Nx, Ny // 2 + 1)
+    P_hat_random = torch.randn(rfft_shape, dtype=torch.complex64)
+    smoothness_sigma = (Nx + Ny) / 2.0 / 40.0 
+    k_squared_rfft = freq2[:, :Ny//2+1]
+    gaussian_filter = torch.exp(-k_squared_rfft / (2 * (smoothness_sigma**2)))
+    P_hat_filtered = P_hat_random * gaussian_filter
+    P = torch.fft.irfftn(P_hat_filtered, s=(Nx, Ny), dim=(1, 2))
+    return P
+
 # ========================= Voigt Tensors ===============================
 def full_2x2_to_Voigt_3_index(i, j):
     if i == j:
