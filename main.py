@@ -49,7 +49,7 @@ def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False, pol
         'mob': 300,
         't_scale': P_scale**2 / (H_scale * 30),
 
-        'Nx': 512, 'Ny': 256,
+        'Nx': 256, 'Ny': 256,
         'dx': 0.2, 'dy': 0.2,
 
         'nsteps': 10000 if hysteresis else 5000,
@@ -73,12 +73,13 @@ def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False, pol
         P, _ = initial_polarization(sim_params, initial_results_path)
         file_name_h5 = f"results_continued_hysteresis_{a_afe_scale}.h5"
 
+    # print(P.shape)
     n = 2 * pi / (sqrt(1) * sim_params['ac']) * sqrt(2 * sim_params['g']/sim_params['sigma_theta2'])
     print(f"Number of periodicity: {n:.2f}")
 
     # Run simulation
     if polycrystal:
-        results_dir_name = f"results_grain_{sim_params['grain_numbers']}_{sim_params['Nx']}x{sim_params['dx']}_0to180"
+        results_dir_name = f"results_grain_{sim_params['grain_numbers']}_{sim_params['Nx']}x{sim_params['dx']}"
         simulation = PolyCrystalDomainEvolution(
             P=P,
             sim_params=sim_params,
@@ -101,19 +102,19 @@ def run_simulation(a_afe_scale, initial_results_path=None, hysteresis=False, pol
     return os.path.join(os.getcwd(), results_dir_name, file_name_h5)
 
 def main():
-    a_afe_scales = [1.0, 1.5, 2.2, 3.0]
+    a_afe_scales = [1.0]#, 1.5, 2.2, 3.0]
     initial_files = {}
 
     # First phase: run without electric field
     print("Running initial simulations without electric field...")
     for scale in (a_afe_scales):
-        result_file = run_simulation(scale, hysteresis=False, polycrystal=True)
+        result_file = run_simulation(scale, hysteresis=False, polycrystal=False)
         initial_files[scale] = result_file
 
     # Second phase: run with hysteresis
-    print("\nRunning hysteresis simulations...")
-    for scale in (a_afe_scales):
-        run_simulation(scale, initial_results_path=initial_files[scale], hysteresis=True, polycrystal=True)
+    # print("\nRunning hysteresis simulations...")
+    # for scale in (a_afe_scales):
+    #     run_simulation(scale, initial_results_path=initial_files[scale], hysteresis=True, polycrystal=True)
 
 
 if __name__ == "__main__":

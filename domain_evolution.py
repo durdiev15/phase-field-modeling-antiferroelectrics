@@ -241,12 +241,10 @@ class PolyCrystalDomainEvolution(SingleCrystalDomainEvolution):
                  sim_params: Dict,
                  results_dir_name: str,
                  file_name_h5: str,
-                 max_iter: int,
-                 rtol: float,
                  dtype=torch.float32):
         
         # Initialize parent class
-        super().__init__(P, sim_params, results_dir_name, file_name_h5, max_iter, rtol, dtype)
+        super().__init__(P, sim_params, results_dir_name, file_name_h5, dtype)
         
         # Polycrystal-specific initialization
         self._validate_polycrystal_params()

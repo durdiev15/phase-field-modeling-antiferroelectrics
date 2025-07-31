@@ -3,17 +3,27 @@ import itertools
 import h5py
 import sys
 import os
+from torch.fft import fftfreq
+from math import pi
 
-def random_polarization_field(Nx, Ny, freq2):
+def random_polarization_field(Nx, Ny, dx, dy):
     # Random periodic polarization
     torch.manual_seed(42)
     rfft_shape = (2, Nx, Ny // 2 + 1)
     P_hat_random = torch.randn(rfft_shape, dtype=torch.complex64)
     smoothness_sigma = (Nx + Ny) / 2.0 / 40.0 
+    kx = (2.0 * pi * fftfreq(Nx, dx))
+    ky = (2.0 * pi * fftfreq(Ny, dy))
+
+    kx_grid, ky_grid = torch.meshgrid(kx, ky, indexing='ij')
+    freq = torch.stack((kx_grid, ky_grid))
+    freq2 = torch.einsum('i..., i...', freq, freq)
+
     k_squared_rfft = freq2[:, :Ny//2+1]
     gaussian_filter = torch.exp(-k_squared_rfft / (2 * (smoothness_sigma**2)))
     P_hat_filtered = P_hat_random * gaussian_filter
     P = torch.fft.irfftn(P_hat_filtered, s=(Nx, Ny), dim=(1, 2))
+    # print(f"Shape of P: {P.shape}")
     return P
 
 # ========================= Voigt Tensors ===============================
@@ -61,8 +71,11 @@ def initial_polarization(sim_params, filepath: str = None):
             return torch.stack([P1, P2]), sim_params_file
 
     else:
-        torch.manual_seed(42) # Random initial polarization between -0.01 and +0.01
-        return 0.01 * (2.0 * torch.rand(2, sim_params['Nx'], sim_params['Ny']) - 1.0), sim_params
+        # torch.manual_seed(42) # Random initial polarization between -0.01 and +0.01
+        # return 0.01 * (2.0 * torch.rand(2, sim_params['Nx'], sim_params['Ny']) - 1.0), sim_params
+        P = random_polarization_field(Nx=sim_params['Nx'], Ny=sim_params['Ny'], dx=sim_params['dx'], dy=sim_params['dy'])
+        # print(P.shape)
+        return P, sim_params
 
 # =================== Triangular applied electric field for hysteresis =====
 def triangular_field_vectorized(t, E_max, T_cycle): # Custom triangular waveform starting from 0

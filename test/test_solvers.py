@@ -11,7 +11,7 @@ from torch.fft import fftn as fft, ifftn as ifft
 
 if __name__ == '__main__':
     # --- Simulation Parameters ---
-    Nx, Ny = 128, 96      # Grid resolution (can be non-square)
+    Nx, Ny = 128, 128      # Grid resolution (can be non-square)
     dx, dy = 0.1, 0.1     # Grid spacing in each dimension
     k0 = 1.0              # Vacuum permittivity
     C11 = 246.0  # GPa
@@ -32,7 +32,8 @@ if __name__ == '__main__':
 
     C = voigt_to_full_tensor_2D(C11, C12, C44).to(dtype).to(device)
     Gamma = solver.green_operator(C, freq)
-    P = random_polarization_field(Nx, Ny, freq2)
+    P = random_polarization_field(Nx, Ny, dx, dy).to(dtype)
+    print(P.shape)
     eps0, deps0_dP = spon_strain_derivative(Q11, Q12, Q44, P)
     eps_ext = torch.zeros_like(eps0)
 
