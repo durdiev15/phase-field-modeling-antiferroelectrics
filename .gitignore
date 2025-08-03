@@ -6,3 +6,5 @@ __pycache__/
 .vscode/
 venv/
 results_*/
+neural_operator/
+test/
